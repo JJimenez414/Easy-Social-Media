@@ -23,7 +23,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 # This will get video from frontend and do analyses on it
 @app.route('/postVideo', methods=['POST'])
 def postVideo():
-    global mean, dips, peaks, percentage, audio_percentage, l_seconds, length_percentage, l_boolean, height, width, resolution_percentage, aspect_ratio, aspect_percentage
+    global mean, dips, peaks, percentage, audio_percentage, l_seconds, length_percentage, l_boolean, height, width, resolution_percentage, aspectR, aspect_percentage
     # Check if the POST request has the file part
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -54,9 +54,9 @@ def postVideo():
     else:
         resolution_percentage = 0
 
-    aspect_ratio = aspect_ratio(f"./uploads/{filename}")
+    aspectR = aspect_ratio(f"./uploads/{filename}")
 
-    if aspect_ratio:
+    if aspectR:
         aspect_percentage = 0
     else:
         aspect_percentage = 25
@@ -64,16 +64,29 @@ def postVideo():
     convert_mp4_to_mp3(f'./uploads/{filename}', './downloads/audio.mp3')
     mean, dips, peaks, percentage = detect_long_dips_peaks('./downloads/audio.mp3')
 
-    # this function needs to be updated | volume = avg_audio_level('./downloads/audio.mp3') 
+    # if mean is nan due to librosa, make sure it changes to an int
     if math.isnan(mean):
         mean = 0
-    # Check if percentage is higher than recommended
-    audio_percentage = percentage * (25/100) # THIS NEEDS TO BE UPDATED
-    # print(audio_percentage)
-    if audio_percentage > 2: 
-        audio_percentage = 25 - int(audio_percentage)
+    
+    # if mean is 0, then that means there's no audio, and audio_percentage needs to be score 0
+    if mean == 0:
+        audio_percentage = 0
     else:
-        audio_percentage = 25
+        # clear cut indication that user needs to adjust their audio
+        if dips or peaks:
+            audio_percentage = 0
+        else:
+            audio_percentage = 25
+
+
+
+        # if it's not 0, then adjust percentage marks accordinally
+        # audio_percentage = percentage * (25/100) # takes dips and peaks percentages from video, and puts it in a 25% scale
+        # print(audio_percentage)
+        # if audio_percentage > 2: # if audio percentage is significant, then subtract it from 25
+        #     audio_percentage = 25 - int(audio_percentage)
+        # else:
+        #     audio_percentage = 25 # if it's not that big, then just equal it to 25
     
     return jsonify({'nameRequest': "postVideo", 'filename': filename}) # Verify if this is correct
 
@@ -92,7 +105,7 @@ def sendData():
                 'height': height,
                 'width': width,
                 'resolution_percentage': resolution_percentage,
-                'aspect_ratio': aspect_ratio,
+                'aspect_ratio': aspectR,
                 'aspect_percentage': aspect_percentage
                 }
     
